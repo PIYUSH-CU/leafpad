@@ -7,8 +7,11 @@ import com.notes.theidlenotes.service.NotesService;
 import com.notes.theidlenotes.service.UserDetailServiceImpl;
 import com.notes.theidlenotes.service.UserService;
 import com.notes.theidlenotes.utils.JwtUtil;
+import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseCookie;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -51,12 +54,22 @@ public class PublicController {
     }
 
     @PostMapping("/login")
-    public ResponseEntity<String> login(@RequestBody LoginUserDetail user) throws Exception{
+    public ResponseEntity<String> login(@RequestBody LoginUserDetail user, HttpServletResponse response) throws Exception{
         try{
             authenticationManager.authenticate(new UsernamePasswordAuthenticationToken(user.getUserId(), user.getPassword()));
             UserDetails userDetails = userDetailService.loadUserByUsername(user.getUserId());
             String jwtToken = jwtUtil.generateToken(userDetails.getUsername());
-            return new ResponseEntity<>(jwtToken, HttpStatus.OK);
+            // code for generating a cookie valid for 30 mins
+            ResponseCookie cookie = ResponseCookie.from("access_token", jwtToken)
+                    .httpOnly(true)
+                    .secure(true)
+                    .sameSite("Strict")
+                    .path("/")
+                    .maxAge(60*30)
+                    .build();
+
+            response.addHeader(HttpHeaders.SET_COOKIE, cookie.toString());
+            return new ResponseEntity<>("Welcome my dear friend", HttpStatus.OK);
         }
         catch (Exception e){
             return new ResponseEntity<>("Incorrect username or password",HttpStatus.UNAUTHORIZED);
